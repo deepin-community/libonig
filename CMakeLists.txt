@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.1)
 project(oniguruma
-  VERSION 6.9.7
+  VERSION 6.9.9
   LANGUAGES C)
 
 set(PACKAGE onig)
@@ -9,6 +9,10 @@ set(PACKAGE_VERSION ${PROJECT_VERSION})
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(ENABLE_POSIX_API  "Include POSIX API" OFF)
 option(ENABLE_BINARY_COMPATIBLE_POSIX_API  "Include Binary compatible POSIX API" OFF)
+option(ENABLE_STATISTICS  "Include statistics API" OFF)
+option(INSTALL_DOCUMENTATION "Install documentation" ON)
+option(INSTALL_EXAMPLES "Install examples" OFF)
+option(BUILD_TEST "Build tests" ON)
 if(MSVC)
   option(MSVC_STATIC_RUNTIME "Build with static runtime" OFF)
 endif()
@@ -23,7 +27,6 @@ include(CheckSymbolExists)
 include(CheckTypeSize)
 include(TestBigEndian)
 
-check_function_exists(alloca HAVE_ALLOCA)
 check_include_files(alloca.h HAVE_ALLOCA_H)
 check_include_files(stdint.h    HAVE_STDINT_H)
 check_include_files(sys/times.h HAVE_SYS_TIMES_H)
@@ -36,9 +39,13 @@ check_type_size(long SIZEOF_LONG)
 check_type_size("long long" SIZEOF_LONG_LONG)
 check_type_size("void*" SIZEOF_VOIDP)
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/config.h.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
+if(HAVE_ALLOCA_H)
+  check_symbol_exists(alloca "alloca.h" HAVE_ALLOCA)
+else()
+  check_symbol_exists(alloca "stdlib.h;malloc.h" HAVE_ALLOCA)
+endif()
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/oniguruma.pc.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/oniguruma.pc @ONLY)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/config.h.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 
 set(_SRCS src/regint.h src/regparse.h src/regenc.h src/st.h
  src/regerror.c src/regparse.c src/regext.c src/regcomp.c src/regexec.c
@@ -65,6 +72,10 @@ endif()
 
 if(ENABLE_BINARY_COMPATIBLE_POSIX_API)
   add_definitions("-DUSE_BINARY_COMPATIBLE_POSIX_API")
+endif()
+
+if(ENABLE_STATISTICS)
+  add_definitions("-DONIG_DEBUG_STATISTICS")
 endif()
 
 add_library(onig ${_SRCS})
@@ -135,7 +146,7 @@ set(project_config "${generated_dir}/${PROJECT_NAME}Config.cmake")
 set(TARGETS_EXPORT_NAME "${PROJECT_NAME}Targets")
 set(namespace "${PROJECT_NAME}::")
 
-# Include module with fuction 'write_basic_package_version_file'
+# Include module with function 'write_basic_package_version_file'
 include(CMakePackageConfigHelpers)
 
 # Configure '<PROJECT-NAME>ConfigVersion.cmake'
@@ -155,8 +166,14 @@ configure_package_config_file(
     INSTALL_DESTINATION "${config_install_dir}"
 )
 
+if(CMAKE_INSTALL_LIBDIR MATCHES "^/")
+    set(onig_pkgconfig_libdir "${CMAKE_INSTALL_LIBDIR}")
+else()
+    set(onig_pkgconfig_libdir "\${exec_prefix}/${CMAKE_INSTALL_LIBDIR}")
+endif()
+
 # Targets:
-#   * <prefix>/lib/libonig.a
+#   * <prefix>/lib*/libonig.a
 #   * header location after install: <prefix>/include/
 #   * headers can be included by C code `#include <oniguruma.h>`
 install(
@@ -176,15 +193,15 @@ install(
 )
 
 # Config
-#   * <prefix>/lib/cmake/oniguruma/onigurumaConfig.cmake
-#   * <prefix>/lib/cmake/oniguruma/onigurumaConfigVersion.cmake
+#   * <prefix>/lib*/cmake/oniguruma/onigurumaConfig.cmake
+#   * <prefix>/lib*/cmake/oniguruma/onigurumaConfigVersion.cmake
 install(
     FILES "${project_config}" "${version_config}"
     DESTINATION "${config_install_dir}"
 )
 
 # Config
-#   * <prefix>/lib/cmake/oniguruma/onigurumaTargets.cmake
+#   * <prefix>/lib*/cmake/oniguruma/onigurumaTargets.cmake
 install(
     EXPORT "${TARGETS_EXPORT_NAME}"
     NAMESPACE "${namespace}"
@@ -192,16 +209,45 @@ install(
 )
 
 # Documentation (uses onig not oniguruma for directory)
+if(INSTALL_DOCUMENTATION)
 install(FILES doc/API doc/API.ja doc/RE doc/RE.ja doc/FAQ doc/FAQ.ja
               doc/CALLOUTS.BUILTIN doc/CALLOUTS.BUILTIN.ja
               doc/CALLOUTS.API doc/CALLOUTS.API.ja
               doc/UNICODE_PROPERTIES
-        DESTINATION "${CMAKE_INSTALL_DATADIR}/${PACKAGE}")
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/${PACKAGE}")
 
 # Other files (uses onig not oniguruma for directory)
 install(FILES AUTHORS COPYING HISTORY README.md
-        DESTINATION "${CMAKE_INSTALL_DATADIR}/${PACKAGE}")
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/${PACKAGE}")
+endif()
+
+# Examples
+if(INSTALL_EXAMPLES)
+install(FILES sample/bug_fix.c sample/callback_each_match.c
+              sample/callout.c sample/count.c sample/echo.c
+              sample/encode.c sample/listcap.c
+              sample/names.c sample/posix.c sample/regset.c
+              sample/scan.c sample/simple.c sample/sql.c
+              sample/syntax.c sample/user_property.c
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/examples/${PACKAGE}")
+endif()
 
 # pkg-config
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/oniguruma.pc.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/oniguruma.pc @ONLY)
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/onig-config.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/onig-config @ONLY)
+
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/oniguruma.pc
-        DESTINATION lib/pkgconfig)
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+
+install(PROGRAMS ${CMAKE_CURRENT_BINARY_DIR}/onig-config
+        DESTINATION "${CMAKE_INSTALL_BINDIR}")
+
+# Test
+if(BUILD_TEST)
+  add_subdirectory(test)
+  if(CMAKE_COMPILER_IS_GNUCC)
+    add_subdirectory(windows)
+  endif()
+endif(BUILD_TEST)

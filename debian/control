@@ -4,11 +4,11 @@ Priority: extra
 Maintainer: Jörg Frings-Fürst <debian@jff.email>
 Build-Depends:
  debhelper-compat (= 13)
-Standards-Version: 4.6.0
+Standards-Version: 4.6.2.0
 Rules-Requires-Root: no
 Homepage: https://github.com/kkos/oniguruma
-Vcs-Git: git://jff.email/opt/git/libonig.git
-Vcs-Browser: https://jff.email/cgit/libonig.git
+Vcs-Git: git://git.jff.email/libonig.git
+Vcs-Browser: https://git.jff.email/cgit/libonig.git
 
 Package: libonig5
 Priority: optional

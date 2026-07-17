@@ -1,3 +1,30 @@
+libonig (6.9.9-1) unstable; urgency=medium
+
+  * New upstream release.
+  * Add missing head lines to debian/copyright (Thanks to Phil Wyett).
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Fri, 15 Dec 2023 13:59:12 +0100
+
+libonig (6.9.8-2) unstable; urgency=medium
+
+  * debian/rules:
+    - Fix Fails to build source after successful build (Closes: #1047845).
+  * Declare compliance with Debian Policy 4.6.2 (No changes needed).
+  * debian/copyright:
+    - Add year 2023 to myself.
+  * debian/control:
+    - Change to new repository URL.
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Mon, 14 Aug 2023 14:33:07 +0200
+
+libonig (6.9.8-1) unstable; urgency=medium
+
+  * New Upstream release.
+    - Remove upstream applied patches:
+      + 0100-source_typos.patch
+
+ -- Jörg Frings-Fürst <debian@jff.email>  Sat, 30 Apr 2022 10:37:23 +0200
+
 libonig (6.9.7.1-2) unstable; urgency=medium
 
   * Upload into unstable.
