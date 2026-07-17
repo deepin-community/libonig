@@ -1,11 +1,10 @@
-[![Build Status](https://travis-ci.org/kkos/oniguruma.svg?branch=master)](https://travis-ci.org/kkos/oniguruma)
-[![Code Quality: Cpp](https://img.shields.io/lgtm/grade/cpp/g/kkos/oniguruma.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/kkos/oniguruma/context:cpp)
-[![Total Alerts](https://img.shields.io/lgtm/alerts/g/kkos/oniguruma.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/kkos/oniguruma/alerts)
 [![Fuzzing Status](https://oss-fuzz-build-logs.storage.googleapis.com/badges/oniguruma.svg)](https://oss-fuzz-build-logs.storage.googleapis.com/index.html#oniguruma)
-[![TrustInSoft CI](https://ci.trust-in-soft.com/projects/kkos/oniguruma.svg?branch=master)](https://ci.trust-in-soft.com/projects/kkos/oniguruma)
 
 Oniguruma
 =========
+
+## **Since 2020, Oniguruma has been under attack on Google search in Japan.** [(Issue #234)](https://github.com/kkos/oniguruma/issues/234)
+
 
 https://github.com/kkos/oniguruma
 
@@ -34,6 +33,26 @@ Notice (from 6.9.6)
 When using configure script, if you have the POSIX API enabled in an earlier version (disabled by default in 6.9.5) and you need application binary compatibility with the POSIX API, specify "--enable-binary-compatible-posix-api=yes" instead of "--enable-posix-api=yes". Starting in 6.9.6, "--enable-posix-api=yes" only supports source-level compatibility for 6.9.5 and earlier about POSIX API. (Issue #210)
 
 
+Version 6.9.9
+-------------
+* Update Unicode version 15.1.0
+* NEW API: ONIG_OPTION_MATCH_WHOLE_STRING
+* Fixed: (?I) option was not enabled for character classes (Issue #264).
+* Changed specification to check for incorrect POSIX bracket (Issue #253).
+* Changed [[:punct:]] in Unicode encodings to be compatible with POSIX definition. (Issue #268)
+* Fixed: ONIG_OPTION_FIND_LONGEST behavior
+
+
+Version 6.9.8
+-------------
+* Update Unicode version 14.0.0
+* Whole options
+    * (?C) : ONIG_OPTION_DONT_CAPTURE_GROUP
+    * (?I) : ONIG_OPTION_IGNORECASE_IS_ASCII
+    * (?L) : ONIG_OPTION_FIND_LONGEST
+* Fixed some problems found by OSS-Fuzz
+
+
 Version 6.9.7
 -------------
 * NEW API: ONIG_OPTION_CALLBACK_EACH_MATCH
@@ -54,65 +73,6 @@ Version 6.9.6
 * Under cygwin and mingw, generate and install the libonig.def file (Issue #220)
 
 
-Version 6.9.5 revised 1
------------------------
-
-* Fixed Issue #192
-
-
-Version 6.9.5
--------------
-
-* POSIX API disabled by default for Unix (* Enabled by: configure --enable-posix-api=yes)
-* Update Unicode version 13.0.0
-* NEW: Code point sequence notation \x{HHHH HHHH ...}, \o{OOOO OOOO ...}
-* NEW API: retry limit in search functions
-* NEW API: maximum nesting level of subexp call
-* Fixed behavior of isolated options in Perl and Java syntaxes.  /...(?i).../
-
-
-Version 6.9.4
--------------
-
-* NEW API: RegSet (set of regexes)
-* Fixed CVE-2019-19012
-* Fixed CVE-2019-19203 (Does not affect UTF-8, UTF-16 and UTF-32 encodings)
-* Fixed CVE-2019-19204 (Affects only PosixBasic, Emacs and Grep syntaxes)
-* Fixed CVE-2019-19246
-* Fixed some problems (found by libFuzzer test)
-
-
-Version 6.9.3 (security fix release)
-------------------------------------
-
-* Fixed CVE-2019-13224
-* Fixed CVE-2019-13225
-* Fixed CVE-2019-16163
-* Fixed many problems (found by libFuzzer test)
-
-
-Version 6.9.2 (Reiwa)
----------------------
-
-* add doc/SYNTAX.md
-* Direct threaded code (for GCC and Clang)
-* Update Unicode version 12.1.0
-* NEW: Unicode Text Segment mode option (?y{g}) (?y{w})  (*original)
-
-
-Version 6.9.1
--------------
-
-* Speed improvement (* especially UTF-8)
-
-
-Version 6.9.0
--------------
-
-* Update Unicode version 11.0.0
-* NEW: add Emoji properties
-
-
 License
 -------
 
@@ -124,7 +84,7 @@ Install
 
 ### Case 1: Linux distribution packages
 
-   * Fedora:         `dnf install oniguruma`
+   * Fedora:         `dnf install oniguruma-devel`
    * RHEL/CentOS:    `yum install oniguruma`
    * Debian/Ubuntu:  `apt install libonig5`
    * Arch:           `pacman -S oniguruma`

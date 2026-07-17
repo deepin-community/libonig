@@ -2,7 +2,7 @@
   regexec.c -  Oniguruma (regular expression library)
 **********************************************************************/
 /*-
- * Copyright (c) 2002-2021  K.Kosako
+ * Copyright (c) 2002-2022  K.Kosako
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -180,19 +180,7 @@ typedef struct {
 } MatchArg;
 
 
-#if defined(ONIG_DEBUG_COMPILE) || defined(ONIG_DEBUG_MATCH)
-
-/* arguments type */
-typedef enum {
-  ARG_SPECIAL = -1,
-  ARG_NON     =  0,
-  ARG_RELADDR =  1,
-  ARG_ABSADDR =  2,
-  ARG_LENGTH  =  3,
-  ARG_MEMNUM  =  4,
-  ARG_OPTION  =  5,
-  ARG_MODE    =  6
-} OpArgType;
+#if defined(ONIG_DEBUG_COMPILE) || defined(ONIG_DEBUG_MATCH) || defined(ONIG_DEBUG_STATISTICS)
 
 typedef struct {
   short int opcode;
@@ -298,6 +286,22 @@ static OpInfoType OpInfo[] = {
 #endif
   { -1, ""}
 };
+
+#endif
+
+#if defined(ONIG_DEBUG_COMPILE) || defined(ONIG_DEBUG_MATCH)
+
+/* arguments type */
+typedef enum {
+  ARG_SPECIAL = -1,
+  ARG_NON     =  0,
+  ARG_RELADDR =  1,
+  ARG_ABSADDR =  2,
+  ARG_LENGTH  =  3,
+  ARG_MEMNUM  =  4,
+  ARG_OPTION  =  5,
+  ARG_MODE    =  6
+} OpArgType;
 
 static char*
 op2name(int opcode)
@@ -2478,7 +2482,7 @@ static int string_cmp_ic(OnigEncoding enc, int case_fold_flag,
 #define ON_STR_BEGIN(s)        ((s) == str)
 #define ON_STR_END(s)          ((s) == end)
 #define DATA_ENSURE_CHECK1     (s < right_range)
-#define DATA_ENSURE_CHECK(n)   (s + (n) <= right_range)
+#define DATA_ENSURE_CHECK(n)   ((n) <= right_range - s)
 #define DATA_ENSURE(n)         if (right_range - s < (n)) goto fail
 
 #define INIT_RIGHT_RANGE    right_range = (UChar* )in_right_range
@@ -2808,7 +2812,7 @@ typedef struct {
 
 #define MATCH_COUNTER_OUT(title) do {\
   int i;\
-  fprintf(DBGFP, "%s (%ld): retry limit: %8lu, subexp_call: %8lu\n", (title), (sstart - str), retry_in_match_counter, msa->subexp_call_in_search_counter); \
+  fprintf(DBGFP, "%s (%ld): retry limit: %8lu/%8lu, subexp_call: %8lu\n", (title), (sstart - str), retry_in_match_counter, retry_limit_in_match, msa->subexp_call_in_search_counter); \
   fprintf(DBGFP, "      ");\
   for (i = 0; i < MAX_SUBEXP_CALL_COUNTERS; i++) {\
     fprintf(DBGFP, " %6lu", subexp_call_counters[i]);\
@@ -3038,36 +3042,43 @@ match_at(regex_t* reg, const UChar* str, const UChar* end,
 
   BYTECODE_INTERPRETER_START {
     CASE_OP(END)
+      if (OPTON_MATCH_WHOLE_STRING(options)) {
+        if (! ON_STR_END(s)) goto fail;
+      }
+
       n = (int )(s - sstart);
       if (n == 0 && OPTON_FIND_NOT_EMPTY(options)) {
         best_len = ONIG_MISMATCH;
         goto fail; /* for retry */
       }
 
-      if (n > best_len) {
 #ifdef USE_FIND_LONGEST_SEARCH_ALL_OF_RANGE
-        if (OPTON_FIND_LONGEST(options)) {
+      if (OPTON_FIND_LONGEST(options)) {
+        if (n > best_len) {
           if (n > msa->best_len) {
+            best_len = n;
             msa->best_len = n;
             msa->best_s   = (UChar* )sstart;
           }
           else {
             if (s >= in_right_range && msa->best_s == sstart) {
-              best_len = msa->best_len; /* end of find */
+              goto op_end_out;
             }
             else {
-              SOP_OUT;
               goto fail; /* for retry */
             }
           }
         }
         else {
-          best_len = n;
+          goto fail; /* for retry */
         }
-#else
-        best_len = n;
-#endif
       }
+      else {
+        best_len = n;
+      }
+#else
+      best_len = n;
+#endif
 
       /* set region */
       region = msa->region;
@@ -3132,14 +3143,14 @@ match_at(regex_t* reg, const UChar* str, const UChar* end,
 #endif
       } /* if (region) */
 
-      SOP_OUT;
-
       if (OPTON_CALLBACK_EACH_MATCH(options) &&
           IS_NOT_NULL(CallbackEachMatch)) {
         i = CallbackEachMatch(str, end, sstart, region,
                               msa->mp->callout_user_data);
-        if (i < 0) MATCH_AT_ERROR_RETURN(i);
-
+        if (i < 0) {
+          SOP_OUT;
+          MATCH_AT_ERROR_RETURN(i);
+        }
 #ifdef USE_FIND_LONGEST_SEARCH_ALL_OF_RANGE
         if (! OPTON_FIND_LONGEST(options))
 #endif
@@ -3148,7 +3159,13 @@ match_at(regex_t* reg, const UChar* str, const UChar* end,
         goto fail;
       }
 
+#ifdef USE_FIND_LONGEST_SEARCH_ALL_OF_RANGE
+      if (OPTON_FIND_LONGEST(options)) goto fail;
+#endif
+
+  op_end_out:
       /* default behavior: return first-matching result. */
+      SOP_OUT;
       goto match_at_end;
 
     CASE_OP(STR_1)
@@ -3858,7 +3875,7 @@ match_at(regex_t* reg, const UChar* str, const UChar* end,
           pend   = STACK_MEM_END(reg, mem);
           n = (int )(pend - pstart);
           if (n != 0) {
-            DATA_ENSURE(n);
+            if (! DATA_ENSURE_CHECK(n)) continue;
             swork = s;
             STRING_CMP_VALUE(swork, pstart, n, is_fail);
             if (is_fail) continue;
@@ -3887,7 +3904,7 @@ match_at(regex_t* reg, const UChar* str, const UChar* end,
           pend   = STACK_MEM_END(reg, mem);
           n = (int )(pend - pstart);
           if (n != 0) {
-            DATA_ENSURE(n);
+            if (! DATA_ENSURE_CHECK(n)) continue;
             swork = s;
             STRING_CMP_VALUE_IC(case_fold_flag, pstart, &swork, n, is_fail);
             if (is_fail) continue;
@@ -4395,6 +4412,11 @@ match_at(regex_t* reg, const UChar* str, const UChar* end,
 #endif
 
     CASE_OP(FINISH)
+#ifdef USE_FIND_LONGEST_SEARCH_ALL_OF_RANGE
+      if (OPTON_FIND_LONGEST(options)) {
+        best_len = ONIG_MISMATCH;
+      }
+#endif
       goto match_at_end;
 
 #ifdef ONIG_DEBUG_STATISTICS
@@ -5451,7 +5473,6 @@ search_in_range(regex_t* reg, const UChar* str, const UChar* end,
     }\
     else goto finish; /* error */ \
   }
-
 
   /* anchor optimize: resume search range */
   if (reg->anchor != 0 && str < end) {
